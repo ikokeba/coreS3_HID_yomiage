@@ -18,4 +18,10 @@ void spk_SD_setup();
 
 DisplayData convert_keycode_to_DisplayData(int keycode);
 
+// ローマ字モード用: ひらがなからDisplayDataへの変換
+DisplayData convert_hiragana_to_DisplayData(String hiragana);
+
+// モード表示用のDisplayData生成
+DisplayData create_mode_display_data(bool isRomajiMode);
+
 

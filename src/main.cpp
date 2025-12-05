@@ -31,6 +31,7 @@
 #include <M5Unified.h>
 #include "usbh_helper.h"
 #include "DisplayDataGenerator.h"
+#include "RomajiConverter.h"
 
 #define DEBUG_MODE_SERIAL //現状必須。
 // #define DEBUG_LCD
@@ -39,6 +40,12 @@
 
 uint8_t global_reports[DATA_LEN]; //global変数
 bool is_in_push = false;
+
+// ローマ字変換インスタンス
+RomajiConverter romajiConverter;
+
+// Ctrl+M検出用のフラグ（キーが離されたことを検出するため）
+bool ctrl_m_pressed = false;
 
 
 void main_task(void *parameter){
@@ -59,7 +66,28 @@ void main_task(void *parameter){
       }
       #endif
       
-      if(global_reports[0] == 0x01 && global_reports[2] == 0x4F){
+      // Ctrl+Mの検出（左Ctrl: bit 0, 右Ctrl: bit 4, Mキー: 0x10）
+      bool ctrl_pressed = (global_reports[0] & 0x01) || (global_reports[0] & 0x10);
+      bool m_pressed = (global_reports[2] == 0x10);
+      
+      if(ctrl_pressed && m_pressed && !ctrl_m_pressed){
+        // Ctrl+Mが押された（初回検出）
+        ctrl_m_pressed = true;
+        romajiConverter.toggleMode();
+        
+        // モード表示
+        DisplayData modeData = create_mode_display_data(romajiConverter.getMode() == MODE_ROMAJI);
+        M5.Lcd.setCursor(modeData.x, modeData.y);
+        M5.Lcd.setTextSize(modeData.font_size);
+        M5.Lcd.printf("%s", modeData.lcd_str.c_str());
+        M5.Lcd.waitDisplay();
+        
+        #ifdef DEBUG_MODE_SERIAL
+        Serial.printf("Mode switched to: %s\n", 
+                      romajiConverter.getMode() == MODE_ROMAJI ? "ROMAJI" : "ALPHABET");
+        #endif
+      }
+      else if(global_reports[0] == 0x01 && global_reports[2] == 0x4F){
         //音声大を設定
         set_volume(100);
       }
@@ -67,19 +95,39 @@ void main_task(void *parameter){
         //音声小を設定
         set_volume(20);
       }
-      else{
-        DisplayData dispdata = convert_keycode_to_DisplayData(global_reports[2]);
-        play_wav(dispdata.wav_path);
-        M5.Lcd.setCursor(dispdata.x,dispdata.y);
-        M5.Lcd.setTextSize(dispdata.font_size);
-        M5.Lcd.printf("%s", dispdata.lcd_str);
-        M5.Lcd.waitDisplay();
+      else if(!(ctrl_pressed && m_pressed)){
+        // Ctrl+M以外のキー入力処理
+        if(romajiConverter.getMode() == MODE_ROMAJI){
+          // ローマ字モード
+          String hiragana = romajiConverter.processKeyInput(global_reports[2]);
+          if(hiragana.length() > 0){
+            // 読み上げるべきひらがながある場合
+            DisplayData dispdata = convert_hiragana_to_DisplayData(hiragana);
+            play_wav(dispdata.wav_path);
+            M5.Lcd.setCursor(dispdata.x, dispdata.y);
+            M5.Lcd.setTextSize(dispdata.font_size);
+            M5.Lcd.printf("%s", dispdata.lcd_str.c_str());
+            M5.Lcd.waitDisplay();
+          }
+        } else {
+          // アルファベットモード（既存の処理）
+          DisplayData dispdata = convert_keycode_to_DisplayData(global_reports[2]);
+          play_wav(dispdata.wav_path);
+          M5.Lcd.setCursor(dispdata.x,dispdata.y);
+          M5.Lcd.setTextSize(dispdata.font_size);
+          M5.Lcd.printf("%s", dispdata.lcd_str);
+          M5.Lcd.waitDisplay();
+        }
       }
       
     }
     
     if(global_reports[2] == 0x00){
       is_in_push = false;
+      // Ctrl+Mが離されたことを検出
+      if(ctrl_m_pressed){
+        ctrl_m_pressed = false;
+      }
     }
 
     delay(10);

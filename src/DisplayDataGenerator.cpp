@@ -155,3 +155,29 @@ DisplayData convert_keycode_to_DisplayData(int keycode) {
 
     return ret_val;
 }
+
+// ローマ字モード用: ひらがなからDisplayDataへの変換
+DisplayData convert_hiragana_to_DisplayData(String hiragana) {
+    DisplayData ret_val;
+    ret_val.lcd_str = hiragana;
+    ret_val.font_size = 7;  // アルファベットモードの約半分のサイズ
+    ret_val.x = 90;  // 中央寄り
+    ret_val.y = 50;  // 画面中央より少し下（縦方向にはみ出ないように調整）
+    ret_val.wav_path = "/" + hiragana + ".wav";
+    return ret_val;
+}
+
+// モード表示用のDisplayData生成
+DisplayData create_mode_display_data(bool isRomajiMode) {
+    DisplayData ret_val;
+    if (isRomajiMode) {
+        ret_val.lcd_str = "ローマ字モード";
+    } else {
+        ret_val.lcd_str = "アルファベットモード";
+    }
+    ret_val.font_size = 2;
+    ret_val.x = 10;
+    ret_val.y = 10;
+    ret_val.wav_path = "";  // モード切替時は音声再生なし
+    return ret_val;
+}
