@@ -43,6 +43,12 @@ public:
     
     // 現在の状態を取得
     RomajiState getState() const { return state; }
+    
+    // 最後に入力された子音を取得
+    char getLastConsonant() const { return lastConsonant; }
+    
+    // 現在のローマ字入力を取得（例: "ka", "m"など）
+    String getCurrentRomaji() const;
 
 private:
     InputMode currentMode;

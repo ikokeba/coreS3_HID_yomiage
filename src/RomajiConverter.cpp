@@ -195,3 +195,16 @@ void RomajiConverter::resetState() {
     lastConsonant = '\0';
 }
 
+String RomajiConverter::getCurrentRomaji() const {
+    if (state == STATE_CONSONANT && lastConsonant != '\0') {
+        // 子音待機状態: 子音のみを返す
+        String romaji = "";
+        romaji += lastConsonant;
+        return romaji;
+    } else if (state == STATE_N_WAIT) {
+        // n待機状態: "n"を返す
+        return "n";
+    }
+    return "";  // 初期状態またはその他
+}
+
