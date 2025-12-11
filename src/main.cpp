@@ -100,65 +100,79 @@ void main_task(void *parameter){
         if(romajiConverter.getMode() == MODE_ROMAJI){
           // ローマ字モード
           char inputChar = romajiConverter.keycodeToChar(global_reports[2]);
-          RomajiState oldState = romajiConverter.getState();
-          char oldConsonant = romajiConverter.getLastConsonant();
           
-          String hiragana = romajiConverter.processKeyInput(global_reports[2]);
-          RomajiState newState = romajiConverter.getState();
-          
-          // 画面をクリア（前回の表示を消す）
-          M5.Lcd.clearDisplay();
-          
-          if(hiragana.length() > 0){
-            // 読み上げるべきひらがながある場合（母音入力後など）
-            // ローマ字を右上に小さく表示
-            String currentRomaji = "";
-            if(oldState == STATE_CONSONANT && oldConsonant != '\0' && romajiConverter.isVowel(inputChar)){
-              // 子音+母音の組み合わせ
-              currentRomaji = String(oldConsonant) + String(inputChar);
-            } else if(oldState == STATE_N_WAIT && romajiConverter.isVowel(inputChar)){
-              // n+母音の組み合わせ
-              currentRomaji = "n" + String(inputChar);
-            } else if(oldState == STATE_INITIAL && romajiConverter.isVowel(inputChar)){
-              // 母音単独入力
-              currentRomaji = String(inputChar);
-            } else if(hiragana == "ん"){
-              // 「ん」が読み上げられる場合
-              if(oldState == STATE_N_WAIT && inputChar == 'n'){
-                currentRomaji = "nn";
-              } else if(oldState == STATE_N_WAIT && romajiConverter.isConsonant(inputChar)){
+          // 特殊キー（Enter、Space、矢印、@など）の場合はアルファベットモードと同じ処理
+          if(inputChar == '\0'){
+            // 特殊キーの場合（アルファベット以外）
+            DisplayData dispdata = convert_keycode_to_DisplayData(global_reports[2]);
+            M5.Lcd.clearDisplay();
+            play_wav(dispdata.wav_path);
+            M5.Lcd.setCursor(dispdata.x,dispdata.y);
+            M5.Lcd.setTextSize(dispdata.font_size);
+            M5.Lcd.printf("%s", dispdata.lcd_str.c_str());
+            M5.Lcd.waitDisplay();
+          } else {
+            // アルファベットキーの場合（ローマ字処理）
+            RomajiState oldState = romajiConverter.getState();
+            char oldConsonant = romajiConverter.getLastConsonant();
+            
+            String hiragana = romajiConverter.processKeyInput(global_reports[2]);
+            RomajiState newState = romajiConverter.getState();
+            
+            // 画面をクリア（前回の表示を消す）
+            M5.Lcd.clearDisplay();
+            
+            if(hiragana.length() > 0){
+              // 読み上げるべきひらがながある場合（母音入力後など）
+              // ローマ字を右上に小さく表示
+              String currentRomaji = "";
+              if(oldState == STATE_CONSONANT && oldConsonant != '\0' && romajiConverter.isVowel(inputChar)){
+                // 子音+母音の組み合わせ
+                currentRomaji = String(oldConsonant) + String(inputChar);
+              } else if(oldState == STATE_N_WAIT && romajiConverter.isVowel(inputChar)){
+                // n+母音の組み合わせ
                 currentRomaji = "n" + String(inputChar);
+              } else if(oldState == STATE_INITIAL && romajiConverter.isVowel(inputChar)){
+                // 母音単独入力
+                currentRomaji = String(inputChar);
+              } else if(hiragana == "ん"){
+                // 「ん」が読み上げられる場合
+                if(oldState == STATE_N_WAIT && inputChar == 'n'){
+                  currentRomaji = "nn";
+                } else if(oldState == STATE_N_WAIT && romajiConverter.isConsonant(inputChar)){
+                  currentRomaji = "n" + String(inputChar);
+                }
               }
+              
+              if(currentRomaji.length() > 0){
+                DisplayData romajiData = create_romaji_display_data(currentRomaji);
+                M5.Lcd.setCursor(romajiData.x, romajiData.y);
+                M5.Lcd.setTextSize(romajiData.font_size);
+                M5.Lcd.printf("%s", romajiData.lcd_str.c_str());
+              }
+              
+              // ひらがなを中央に表示
+              DisplayData hiraganaData = convert_hiragana_to_DisplayData(hiragana);
+              play_wav(hiraganaData.wav_path);
+              M5.Lcd.setCursor(hiraganaData.x, hiraganaData.y);
+              M5.Lcd.setTextSize(hiraganaData.font_size);
+              M5.Lcd.printf("%s", hiraganaData.lcd_str.c_str());
+              M5.Lcd.waitDisplay();
+            } else if(newState == STATE_CONSONANT && romajiConverter.getLastConsonant() != '\0'){
+              // 子音入力時: 子音を中央に表示
+              DisplayData consonantData = create_consonant_display_data(romajiConverter.getLastConsonant());
+              M5.Lcd.setCursor(consonantData.x, consonantData.y);
+              M5.Lcd.setTextSize(consonantData.font_size);
+              M5.Lcd.printf("%s", consonantData.lcd_str.c_str());
+              M5.Lcd.waitDisplay();
+            } else if(newState == STATE_N_WAIT){
+              // n待機状態: "n"を中央に表示
+              DisplayData nData = create_consonant_display_data('n');
+              M5.Lcd.setCursor(nData.x, nData.y);
+              M5.Lcd.setTextSize(nData.font_size);
+              M5.Lcd.printf("%s", nData.lcd_str.c_str());
+              M5.Lcd.waitDisplay();
             }
-            
-            if(currentRomaji.length() > 0){
-              DisplayData romajiData = create_romaji_display_data(currentRomaji);
-              M5.Lcd.setCursor(romajiData.x, romajiData.y);
-              M5.Lcd.setTextSize(romajiData.font_size);
-              M5.Lcd.printf("%s", romajiData.lcd_str.c_str());
-            }
-            
-            // ひらがなを中央に表示
-            DisplayData hiraganaData = convert_hiragana_to_DisplayData(hiragana);
-            play_wav(hiraganaData.wav_path);
-            M5.Lcd.setCursor(hiraganaData.x, hiraganaData.y);
-            M5.Lcd.setTextSize(hiraganaData.font_size);
-            M5.Lcd.printf("%s", hiraganaData.lcd_str.c_str());
-            M5.Lcd.waitDisplay();
-          } else if(newState == STATE_CONSONANT && romajiConverter.getLastConsonant() != '\0'){
-            // 子音入力時: 子音を中央に表示
-            DisplayData consonantData = create_consonant_display_data(romajiConverter.getLastConsonant());
-            M5.Lcd.setCursor(consonantData.x, consonantData.y);
-            M5.Lcd.setTextSize(consonantData.font_size);
-            M5.Lcd.printf("%s", consonantData.lcd_str.c_str());
-            M5.Lcd.waitDisplay();
-          } else if(newState == STATE_N_WAIT){
-            // n待機状態: "n"を中央に表示
-            DisplayData nData = create_consonant_display_data('n');
-            M5.Lcd.setCursor(nData.x, nData.y);
-            M5.Lcd.setTextSize(nData.font_size);
-            M5.Lcd.printf("%s", nData.lcd_str.c_str());
-            M5.Lcd.waitDisplay();
           }
         } else {
           // アルファベットモード（既存の処理）

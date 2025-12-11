@@ -144,6 +144,10 @@ DisplayData convert_keycode_to_DisplayData(int keycode) {
       case 0x2f:
         //@
         ret_val.lcd_str = "@";
+        ret_val.font_size = 6;
+        ret_val.x = 20;
+        ret_val.y = 70;
+        ret_val.wav_path = "/at.wav";
         break;
         
         
